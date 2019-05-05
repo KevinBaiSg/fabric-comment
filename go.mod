@@ -3,7 +3,7 @@ module github.com/hyperledger/fabric
 go 1.12
 
 require (
-	github.com/BurntSushi/toml v0.0.0-20150501104042-056c9bc7be71
+	github.com/BurntSushi/toml v0.3.1
 	github.com/DATA-DOG/godog v0.5.4
 	github.com/Knetic/govaluate v0.0.0-20161226203230-3cc7c7de92e7
 	github.com/Shopify/sarama v1.12.0
@@ -20,7 +20,7 @@ require (
 	github.com/eapache/queue v1.1.0
 	github.com/fsouza/go-dockerclient v0.0.0-20160725134423-d433254bb83b
 	github.com/gocraft/web v0.0.0-20151009152346-3fd2ffd35c92
-	github.com/golang/protobuf v0.0.0-20170512171634-fec3b39b059c
+	github.com/golang/protobuf v1.2.0
 	github.com/golang/snappy v0.0.0-20160529050041-d9eb7a3d35ec
 	github.com/google/gofuzz v0.0.0-20150903234519-e4af62d086c3
 	github.com/gorilla/context v1.1.1
@@ -54,10 +54,12 @@ require (
 	github.com/stretchr/testify v0.0.0-20160615092844-d77da356e56a
 	github.com/syndtr/goleveldb v0.0.0-20161011050008-6b4daa5362b5
 	golang.org/x/crypto v0.0.0-20151201002508-7b85b097bf75
-	golang.org/x/net v0.0.0-20170517171515-513929065c19
-	golang.org/x/sys v0.0.0-20161023150541-c200b10b5d5e
-	golang.org/x/tools v0.0.0-20150816081544-9f2124fb7015
-	google.golang.org/grpc v0.0.0-20170526152641-2739967807cc
+	golang.org/x/net v0.0.0-20190213061140-3a22650c66bd
+	golang.org/x/sys v0.0.0-20180830151530-49385e6e1522
+	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/tools v0.0.0-20190226205152-f727befe758c
+	google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873 // indirect
+	google.golang.org/grpc v1.19.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.4
 	gopkg.in/yaml.v2 v2.0.0-20170208141851-a3f3340b5840
 )
