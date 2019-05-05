@@ -144,9 +144,9 @@ type BlockMetadataIndex int32
 
 const (
 	BlockMetadataIndex_SIGNATURES          BlockMetadataIndex = 0
-	BlockMetadataIndex_LAST_CONFIG         BlockMetadataIndex = 1
+	BlockMetadataIndex_LAST_CONFIG         BlockMetadataIndex = 1 // 最新配置
 	BlockMetadataIndex_TRANSACTIONS_FILTER BlockMetadataIndex = 2
-	BlockMetadataIndex_ORDERER             BlockMetadataIndex = 3
+	BlockMetadataIndex_ORDERER             BlockMetadataIndex = 3 // order 配置
 )
 
 var BlockMetadataIndex_name = map[int32]string{

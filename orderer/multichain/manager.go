@@ -31,20 +31,25 @@ const (
 // Manager coordinates the creation and access of chains
 type Manager interface {
 	// GetChain retrieves the chain support for a chain (and whether it exists)
+	// 获取链对象
 	GetChain(chainID string) (ChainSupport, bool)
 
 	// SystemChannelID returns the channel ID for the system channel
+	// 系统链名
 	SystemChannelID() string
 
 	// NewChannelConfig returns a bare bones configuration ready for channel
 	// creation request to be applied on top of it
+	// 生成链的配置，更新链配置
 	NewChannelConfig(envConfigUpdate *cb.Envelope) (configtxapi.Manager, error)
 }
 
+// 配置资源
 type configResources struct {
 	configtxapi.Manager
 }
 
+//
 func (cr *configResources) SharedConfig() config.Orderer {
 	oc, ok := cr.OrdererConfig()
 	if !ok {
@@ -53,20 +58,23 @@ func (cr *configResources) SharedConfig() config.Orderer {
 	return oc
 }
 
+// 账本资源类
 type ledgerResources struct {
 	*configResources
 	ledger ledger.ReadWriter
 }
 
+// manager 的实现类
 type multiLedger struct {
-	chains          map[string]*chainSupport
-	consenters      map[string]Consenter
-	ledgerFactory   ledger.Factory
-	signer          crypto.LocalSigner
-	systemChannelID string
-	systemChannel   *chainSupport
+	chains          map[string]*chainSupport	// 多链对象
+	consenters      map[string]Consenter	// 共识机制
+	ledgerFactory   ledger.Factory	// 账本读写工厂
+	signer          crypto.LocalSigner	// 签名
+	systemChannelID string	// 系统链名
+	systemChannel   *chainSupport // 系统链
 }
 
+// 获取链最新配置交易
 func getConfigTx(reader ledger.Reader) *cb.Envelope {
 	lastBlock := ledger.GetBlock(reader, reader.Height()-1)
 	index, err := utils.GetLastConfigIndexFromBlock(lastBlock)
@@ -89,20 +97,24 @@ func NewManagerImpl(ledgerFactory ledger.Factory, consenters map[string]Consente
 		consenters:    consenters,
 		signer:        signer,
 	}
-
+	// 读取本地存储的链的 ID
 	existingChains := ledgerFactory.ChainIDs()
 	for _, chainID := range existingChains {
+		// 实例化账本读对象 read ledger
 		rl, err := ledgerFactory.GetOrCreate(chainID)
 		if err != nil {
 			logger.Panicf("Ledger factory reported chainID %s but could not retrieve it: %s", chainID, err)
 		}
+		// 获取链最新的配置交易
 		configTx := getConfigTx(rl)
 		if configTx == nil {
 			logger.Panic("Programming error, configTx should never be nil here")
 		}
+		// 绑定配置与读写对象
 		ledgerResources := ml.newLedgerResources(configTx)
 		chainID := ledgerResources.ChainID()
 
+		// 是否有创建其他链的权限
 		if _, ok := ledgerResources.ConsortiumsConfig(); ok {
 			if ml.systemChannelID != "" {
 				logger.Panicf("There appear to be two system chains %s and %s", ml.systemChannelID, chainID)
@@ -116,7 +128,7 @@ func NewManagerImpl(ledgerFactory ledger.Factory, consenters map[string]Consente
 			ml.systemChannelID = chainID
 			ml.systemChannel = chain
 			// We delay starting this chain, as it might try to copy and replace the chains map via newChain before the map is fully built
-			defer chain.start()
+			defer chain.start()	// 延迟启动系统链
 		} else {
 			logger.Debugf("Starting chain: %s", chainID)
 			chain := newChainSupport(createStandardFilters(ledgerResources),
@@ -124,7 +136,7 @@ func NewManagerImpl(ledgerFactory ledger.Factory, consenters map[string]Consente
 				consenters,
 				signer)
 			ml.chains[chainID] = chain
-			chain.start()
+			chain.start()	// 启动标准链对象
 		}
 
 	}
@@ -166,7 +178,9 @@ func (ml *multiLedger) newLedgerResources(configTx *cb.Envelope) *ledgerResource
 	}
 }
 
+// 新建一条新链
 func (ml *multiLedger) newChain(configtx *cb.Envelope) {
+	//
 	ledgerResources := ml.newLedgerResources(configtx)
 	ledgerResources.ledger.Append(ledger.CreateNextBlock(ledgerResources.ledger, []*cb.Envelope{configtx}))
 
@@ -315,5 +329,6 @@ func (ml *multiLedger) NewChannelConfig(envConfigUpdate *cb.Envelope) (configtxa
 		}()
 	}
 
+	// 配置 manager 实例化
 	return configtx.NewManagerImpl(templateConfig, initializer, nil)
 }

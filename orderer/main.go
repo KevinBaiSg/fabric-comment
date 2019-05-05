@@ -66,16 +66,27 @@ func main() {
 	// "start" command
 	case start.FullCommand():
 		logger.Infof("Starting %s", metadata.GetVersionInfo())
+
+		// 载入配置信息 使用了 viper
 		conf := config.Load()
+		// 初始化日志级别
 		initializeLoggingLevel(conf)
+		// 初始化 profile
 		initializeProfilingService(conf)
+		// 初始化 grpc 服务
 		grpcServer := initializeGrpcServer(conf)
+		// 载入 msp 证书
 		initializeLocalMsp(conf)
+		// msp 证书用于签名者实例化
 		signer := localmsp.NewSigner()
+		// 初始化多链管理者
 		manager := initializeMultiChainManager(conf, signer)
+		// 实例化服务实现
 		server := NewServer(manager, signer)
+		// 绑定服务器 + 服务实现
 		ab.RegisterAtomicBroadcastServer(grpcServer.Server(), server)
 		logger.Info("Beginning to serve requests")
+		// 启动服务
 		grpcServer.Start()
 	// "version" command
 	case version.FullCommand():
@@ -205,17 +216,22 @@ func initializeLocalMsp(conf *config.TopLevel) {
 }
 
 func initializeMultiChainManager(conf *config.TopLevel, signer crypto.LocalSigner) multichain.Manager {
+	// 创建账本工厂 存储临时区块: file json ram
 	lf, _ := createLedgerFactory(conf)
 	// Are we bootstrapping?
+	// 判断是否有链
 	if len(lf.ChainIDs()) == 0 {
+		// 启动引导
 		initializeBootstrapChannel(conf, lf)
 	} else {
 		logger.Info("Not bootstrapping because of existing chains")
 	}
 
+	// 实例化共识机制
 	consenters := make(map[string]multichain.Consenter)
 	consenters["solo"] = solo.New()
 	consenters["kafka"] = kafka.New(conf.Kafka.TLS, conf.Kafka.Retry, conf.Kafka.Version)
 
+	// 实例化 manager
 	return multichain.NewManagerImpl(lf, consenters, signer)
 }

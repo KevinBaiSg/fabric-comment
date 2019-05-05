@@ -90,6 +90,7 @@ func NewReceiverImpl(sharedConfigManager config.Orderer, filters *filter.RuleSet
 // In any case, `pending` is set to true if there are still messages pending in the receiver after cutting the block.
 func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, committerBatches [][]filter.Committer, validTx bool, pending bool) {
 	// The messages must be filtered a second time in case configuration has changed since the message was received
+	// 再次过滤交易信息
 	committer, err := r.filters.Apply(msg)
 	if err != nil {
 		logger.Debugf("Rejecting message: %s", err)
@@ -97,10 +98,13 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, c
 	}
 
 	// message is valid
+	// 标记交易有效
 	validTx = true
 
+	// 计算交易体的大小
 	messageSizeBytes := messageSizeBytes(msg)
 
+	// 配置交易 || 交易内容过大
 	if committer.Isolated() || messageSizeBytes > r.sharedConfigManager.BatchSize().PreferredMaxBytes {
 
 		if committer.Isolated() {
@@ -109,6 +113,7 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, c
 			logger.Debugf("The current message, with %v bytes, is larger than the preferred batch size of %v bytes and will be isolated.", messageSizeBytes, r.sharedConfigManager.BatchSize().PreferredMaxBytes)
 		}
 
+		// 如果存在遗留的交易，需要先切割
 		// cut pending batch, if it has any messages
 		if len(r.pendingBatch) > 0 {
 			messageBatch, committerBatch := r.Cut()
@@ -116,6 +121,7 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, c
 			committerBatches = append(committerBatches, committerBatch)
 		}
 
+		// 单独切割当前交易
 		// create new batch with single message
 		messageBatches = append(messageBatches, []*cb.Envelope{msg})
 		committerBatches = append(committerBatches, []filter.Committer{committer})
@@ -123,8 +129,10 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, c
 		return
 	}
 
+	// 判断加上当前交易后区块大小是否超出预先设定的大小
 	messageWillOverflowBatchSizeBytes := r.pendingBatchSizeBytes+messageSizeBytes > r.sharedConfigManager.BatchSize().PreferredMaxBytes
 
+	// 超出阈值，切割交易
 	if messageWillOverflowBatchSizeBytes {
 		logger.Debugf("The current message, with %v bytes, will overflow the pending batch of %v bytes.", messageSizeBytes, r.pendingBatchSizeBytes)
 		logger.Debugf("Pending batch would overflow if current message is added, cutting batch now.")
@@ -133,12 +141,14 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, c
 		committerBatches = append(committerBatches, committerBatch)
 	}
 
+	// 将当前交易放入待切割的队列
 	logger.Debugf("Enqueuing message into batch")
 	r.pendingBatch = append(r.pendingBatch, msg)
 	r.pendingBatchSizeBytes += messageSizeBytes
 	r.pendingCommitters = append(r.pendingCommitters, committer)
 	pending = true
 
+	// 待切割的交易数量 >= 区块所允许的最大交易数量
 	if uint32(len(r.pendingBatch)) >= r.sharedConfigManager.BatchSize().MaxMessageCount {
 		logger.Debugf("Batch size met, cutting batch")
 		messageBatch, committerBatch := r.Cut()

@@ -1,0 +1,63 @@
+module github.com/hyperledger/fabric
+
+go 1.12
+
+require (
+	github.com/BurntSushi/toml v0.0.0-20150501104042-056c9bc7be71
+	github.com/DATA-DOG/godog v0.5.4
+	github.com/Knetic/govaluate v0.0.0-20161226203230-3cc7c7de92e7
+	github.com/Shopify/sarama v1.12.0
+	github.com/Sirupsen/logrus v0.11.0
+	github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc
+	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
+	github.com/cpuguy83/go-md2man v1.0.4
+	github.com/davecgh/go-spew v0.0.0-20151105211317-5215b55f46b2
+	github.com/docker/docker v0.0.0-20160726091210-bad654b00c95
+	github.com/docker/engine-api v0.0.0-20160530215809-6facb3f3c387
+	github.com/docker/go-units v0.3.1
+	github.com/eapache/go-resiliency v0.0.0-20160104191539-b86b1ec0dd42
+	github.com/eapache/go-xerial-snappy v0.0.0-20160609142408-bb955e01b934
+	github.com/eapache/queue v1.1.0
+	github.com/fsouza/go-dockerclient v0.0.0-20160725134423-d433254bb83b
+	github.com/gocraft/web v0.0.0-20151009152346-3fd2ffd35c92
+	github.com/golang/protobuf v0.0.0-20170512171634-fec3b39b059c
+	github.com/golang/snappy v0.0.0-20160529050041-d9eb7a3d35ec
+	github.com/google/gofuzz v0.0.0-20150903234519-e4af62d086c3
+	github.com/gorilla/context v1.1.1
+	github.com/gorilla/mux v1.4.0
+	github.com/hashicorp/go-cleanhttp v0.0.0-20160407174126-ad28ea4487f0
+	github.com/hashicorp/go-version v0.0.0-20170914154128-fc61389e27c7
+	github.com/howeyc/gopass v0.0.0-20160303200116-66487b23f288
+	github.com/inconshreveable/mousetrap v1.0.0
+	github.com/klauspost/crc32 v0.0.0-20161016154125-cb6bfca970f6
+	github.com/kr/pretty v0.0.0-20150520163514-e6ac2fc51e89
+	github.com/kr/text v0.0.0-20150905224508-bb797dc4fb83
+	github.com/looplab/fsm v0.0.0-20141127121714-406628531e6e
+	github.com/magiconair/properties v1.5.5
+	github.com/manudrijvers/amcl v0.0.0-20170130131120-765b9c1a68e0
+	github.com/miekg/pkcs11 v0.0.0-20161207191420-2c6cdd29253e
+	github.com/mitchellh/mapstructure v0.0.0-20150717051158-281073eb9eb0
+	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+	github.com/opencontainers/runc v0.0.0-20160726033017-8033a839758a
+	github.com/pierrec/lz4 v0.0.0-20170226142621-90290f74b1b4
+	github.com/pierrec/xxHash v0.0.0-20160112165351-5a004441f897
+	github.com/pmezard/go-difflib v1.0.0
+	github.com/rcrowley/go-metrics v0.0.0-20160921195207-ab2277b1c5d1
+	github.com/russross/blackfriday v0.0.0-20150720194836-8cec3a854e68
+	github.com/shurcooL/sanitized_anchor_name v0.0.0-20150822220530-244f5ac324cb
+	github.com/spf13/cast v0.0.0-20150803163715-ee815aaf958c
+	github.com/spf13/cobra v0.0.0-20160802223737-7c674d9e7201
+	github.com/spf13/jwalterweatherman v0.0.0-20141219030609-3d60171a6431
+	github.com/spf13/pflag v0.0.0-20160718215057-1560c1005499
+	github.com/spf13/viper v0.0.0-20150908122457-1967d93db724
+	github.com/stretchr/objx v0.0.0-20150928122152-1a9d0bb9f541
+	github.com/stretchr/testify v0.0.0-20160615092844-d77da356e56a
+	github.com/syndtr/goleveldb v0.0.0-20161011050008-6b4daa5362b5
+	golang.org/x/crypto v0.0.0-20151201002508-7b85b097bf75
+	golang.org/x/net v0.0.0-20170517171515-513929065c19
+	golang.org/x/sys v0.0.0-20161023150541-c200b10b5d5e
+	golang.org/x/tools v0.0.0-20150816081544-9f2124fb7015
+	google.golang.org/grpc v0.0.0-20170526152641-2739967807cc
+	gopkg.in/alecthomas/kingpin.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.0.0-20170208141851-a3f3340b5840
+)
