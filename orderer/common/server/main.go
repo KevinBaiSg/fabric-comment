@@ -71,6 +71,7 @@ func Main() {
 		return
 	}
 
+	// 加载配置信息
 	conf, err := config.Load()
 	if err != nil {
 		logger.Error("failed to parse config: ", err)
@@ -85,6 +86,7 @@ func Main() {
 
 // Start provides a layer of abstraction for benchmark test
 func Start(cmd string, conf *config.TopLevel) {
+	// 创建本地 MSP 签名者实体
 	signer := localmsp.NewSigner()
 	serverConfig := initializeServerConfig(conf)
 	grpcServer := initializeGrpcServer(conf, serverConfig)
