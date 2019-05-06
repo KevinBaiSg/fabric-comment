@@ -77,10 +77,13 @@ func Main() {
 		logger.Error("failed to parse config: ", err)
 		os.Exit(1)
 	}
+	// 初始化日志级别
 	initializeLoggingLevel(conf)
+	// 初始化本地MSP组件
 	initializeLocalMsp(conf)
-
+	// 打印配置信息
 	prettyPrintStruct(conf)
+	// 启动 orderer 服务
 	Start(fullCmd, conf)
 }
 
@@ -88,23 +91,30 @@ func Main() {
 func Start(cmd string, conf *config.TopLevel) {
 	// 创建本地 MSP 签名者实体
 	signer := localmsp.NewSigner()
+	//初始化 tls 认证的安全服务器配置项
 	serverConfig := initializeServerConfig(conf)
+	// 初始化 grpc 服务器
 	grpcServer := initializeGrpcServer(conf, serverConfig)
+	// 创建 CA support 组件
 	caSupport := &comm.CASupport{
-		AppRootCAsByChain:     make(map[string][][]byte),
-		OrdererRootCAsByChain: make(map[string][][]byte),
-		ClientRootCAs:         serverConfig.SecOpts.ClientRootCAs,
-	}
-	tlsCallback := func(bundle *channelconfig.Bundle) {
-		// only need to do this if mutual TLS is required
-		if grpcServer.MutualTLSRequired() {
-			logger.Debug("Executing callback to update root CAs")
-			updateTrustedRoots(grpcServer, caSupport, bundle)
-		}
+		AppRootCAsByChain:     make(map[string][][]byte),	// Application根CA证书字典
+		OrdererRootCAsByChain: make(map[string][][]byte),	// Orderer根CA证书字典
+		ClientRootCAs:         serverConfig.SecOpts.ClientRootCAs, // 设置 TLS 认证的客户端根CA证书列表
 	}
 
-	manager := initializeMultichannelRegistrar(conf, signer, tlsCallback)
+	// TLS 连接认证的回调函数
+	tlsCallback := func(bundle *channelconfig.Bundle) {
+		// only need to do this if mutual TLS is required
+		if grpcServer.MutualTLSRequired() {	// 检查是否需要认证 TLS 客户端证书，源码可追溯到 General.TLS.ClientAuthRequired
+			logger.Debug("Executing callback to update root CAs")
+			updateTrustedRoots(grpcServer, caSupport, bundle) // 执行回调函数更新根 CA 证书
+		}
+	}
+	// 初始化多channel管理器对象
+	manager := InitializeMultichannelRegistrar(conf, signer, tlsCallback)
+	// 设置 tls 双向认证标志
 	mutualTLS := serverConfig.SecOpts.UseTLS && serverConfig.SecOpts.RequireClientCert
+	// 创建 orderer 排序服务器
 	server := NewServer(manager, signer, &conf.Debug, conf.General.Authentication.TimeWindow, mutualTLS)
 
 	switch cmd {
@@ -139,6 +149,7 @@ func initializeProfilingService(conf *config.TopLevel) {
 	}
 }
 
+// 初始化TLS认证的安全配置
 func initializeServerConfig(conf *config.TopLevel) comm.ServerConfig {
 	// secure server config
 	secureOpts := &comm.SecureOptions{
@@ -226,7 +237,12 @@ func initializeBootstrapChannel(conf *config.TopLevel, lf blockledger.Factory) {
 }
 
 func initializeGrpcServer(conf *config.TopLevel, serverConfig comm.ServerConfig) comm.GRPCServer {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", conf.General.ListenAddress, conf.General.ListenPort))
+	/*
+		参数 conf 源于配置文件 load
+		serverConfig：由 initializeServerConfig() 产生
+	*/
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d",
+		conf.General.ListenAddress/* 127.0.0.1 */, conf.General.ListenPort /* 7050 */))
 	if err != nil {
 		logger.Fatal("Failed to listen:", err)
 	}
@@ -242,13 +258,14 @@ func initializeGrpcServer(conf *config.TopLevel, serverConfig comm.ServerConfig)
 
 func initializeLocalMsp(conf *config.TopLevel) {
 	// Load local MSP
+	// 根据MSP配置文件路径，bccsp 密码服务组件配置，msp名称初始化本地msp组件
 	err := mspmgmt.LoadLocalMsp(conf.General.LocalMSPDir, conf.General.BCCSP, conf.General.LocalMSPID)
 	if err != nil { // Handle errors reading the config file
 		logger.Fatal("Failed to initialize local MSP:", err)
 	}
 }
 
-func initializeMultichannelRegistrar(conf *config.TopLevel, signer crypto.LocalSigner,
+func InitializeMultichannelRegistrar(conf *config.TopLevel, signer crypto.LocalSigner,
 	callbacks ...func(bundle *channelconfig.Bundle)) *multichannel.Registrar {
 	lf, _ := createLedgerFactory(conf)
 	// Are we bootstrapping?

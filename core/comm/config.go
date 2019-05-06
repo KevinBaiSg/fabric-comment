@@ -45,8 +45,10 @@ var (
 // ServerConfig defines the parameters for configuring a GRPCServer instance
 type ServerConfig struct {
 	// SecOpts defines the security parameters
+	// 对应 orderer.yaml 中的 TLS，并读取相应信息
 	SecOpts *SecureOptions
 	// KaOpts defines the keepalive parameters
+	// 对应 orderer.yaml 中的 Keepalive
 	KaOpts *KeepaliveOptions
 }
 
