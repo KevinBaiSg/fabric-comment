@@ -20,12 +20,12 @@ import (
 
 // ChainSupport holds the resources for a particular channel.
 type ChainSupport struct {
-	*ledgerResources
-	msgprocessor.Processor
-	*BlockWriter
-	consensus.Chain
-	cutter blockcutter.Receiver
-	crypto.LocalSigner
+	*ledgerResources	// 账本资源对象
+	msgprocessor.Processor	// 消息处理器
+	*BlockWriter	// 区块写组件
+	consensus.Chain	// 共识组件链对象
+	cutter blockcutter.Receiver	// 消息切割组件
+	crypto.LocalSigner	// 本地签名者
 }
 
 func newChainSupport(

@@ -24,9 +24,10 @@ import (
 	"github.com/hyperledger/fabric/common/ledger/blockledger"
 )
 
+// file ledger 工厂
 type fileLedgerFactory struct {
-	blkstorageProvider blkstorage.BlockStoreProvider
-	ledgers            map[string]blockledger.ReadWriter
+	blkstorageProvider blkstorage.BlockStoreProvider // TODO: READ BlockStoreProvider
+	ledgers            map[string]blockledger.ReadWriter	// TODO: READ blockledger.ReadWriter
 	mutex              sync.Mutex
 }
 
@@ -37,6 +38,7 @@ func (flf *fileLedgerFactory) GetOrCreate(chainID string) (blockledger.ReadWrite
 
 	key := chainID
 	// check cache
+	// map 实现的 ledger 查找
 	ledger, ok := flf.ledgers[key]
 	if ok {
 		return ledger, nil
@@ -46,8 +48,9 @@ func (flf *fileLedgerFactory) GetOrCreate(chainID string) (blockledger.ReadWrite
 	if err != nil {
 		return nil, err
 	}
+	// new file ledger by blockStore
 	ledger = NewFileLedger(blockStore)
-	flf.ledgers[key] = ledger
+	flf.ledgers[key] = ledger // 保存 ledger
 	return ledger, nil
 }
 

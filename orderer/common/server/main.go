@@ -270,6 +270,7 @@ func InitializeMultichannelRegistrar(conf *config.TopLevel, signer crypto.LocalS
 	lf, _ := createLedgerFactory(conf)
 	// Are we bootstrapping?
 	if len(lf.ChainIDs()) == 0 {
+		// 初始化 Bootstrap channel
 		initializeBootstrapChannel(conf, lf)
 	} else {
 		logger.Info("Not bootstrapping because of existing chains")
@@ -279,6 +280,7 @@ func InitializeMultichannelRegistrar(conf *config.TopLevel, signer crypto.LocalS
 	consenters["solo"] = solo.New()
 	consenters["kafka"] = kafka.New(conf.Kafka)
 
+	// 创建多channel 注册管理器对象
 	return multichannel.NewRegistrar(lf, consenters, signer, callbacks...)
 }
 

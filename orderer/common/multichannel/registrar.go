@@ -96,14 +96,14 @@ type ledgerResources struct {
 
 // Registrar serves as a point of access and control for the individual channel resources.
 type Registrar struct {
-	chains          map[string]*ChainSupport
-	consenters      map[string]consensus.Consenter
-	ledgerFactory   blockledger.Factory
-	signer          crypto.LocalSigner
-	systemChannelID string
-	systemChannel   *ChainSupport
-	templator       msgprocessor.ChannelConfigTemplator
-	callbacks       []func(bundle *channelconfig.Bundle)
+	chains          map[string]*ChainSupport	// 链支持对象字典
+	consenters      map[string]consensus.Consenter	// 共识组件字典
+	ledgerFactory   blockledger.Factory	// 账本工厂对象组件
+	signer          crypto.LocalSigner	// 本地签名者实体
+	systemChannelID string	// 系统通道 ID
+	systemChannel   *ChainSupport	// 系统通道链支持对象
+	templator       msgprocessor.ChannelConfigTemplator	// 通道配置末班，用于生成消息处理器 ？？？
+	callbacks       []func(bundle *channelconfig.Bundle)	// tls 认证连接回调函数列表 ？？？
 }
 
 func getConfigTx(reader blockledger.Reader) *cb.Envelope {
@@ -124,37 +124,53 @@ func getConfigTx(reader blockledger.Reader) *cb.Envelope {
 func NewRegistrar(ledgerFactory blockledger.Factory, consenters map[string]consensus.Consenter,
 	signer crypto.LocalSigner, callbacks ...func(bundle *channelconfig.Bundle)) *Registrar {
 	r := &Registrar{
-		chains:        make(map[string]*ChainSupport),
-		ledgerFactory: ledgerFactory,
-		consenters:    consenters,
-		signer:        signer,
-		callbacks:     callbacks,
+		chains:        make(map[string]*ChainSupport),	// 链支持对象字典
+		ledgerFactory: ledgerFactory,	// 账本工厂对象
+		consenters:    consenters,	// 共识组件字典
+		signer:        signer,	// 本地签名者
+		callbacks:     callbacks,	// 回调函数（如 tls 认证连接回调函数）
 	}
 
+	// 获取该账本工厂对象关联的现存通道 ID 列表
 	existingChains := ledgerFactory.ChainIDs()
+	// 循环遍历现存通道 ID 列表
 	for _, chainID := range existingChains {
+		// 根据通道 ID 获取或者创建指定通道上的区块账本对象
 		rl, err := ledgerFactory.GetOrCreate(chainID)
 		if err != nil {
 			logger.Panicf("Ledger factory reported chainID %s but could not retrieve it: %s", chainID, err)
 		}
+		//获取该通道账本上最新的配置交易对象
 		configTx := getConfigTx(rl)
 		if configTx == nil {
 			logger.Panic("Programming error, configTx should never be nil here")
 		}
+		// 解析configTx（cb.Envelope), 并根据其创建ledger资源，
 		ledgerResources := r.newLedgerResources(configTx)
+		// 从 ledgerResources 重新获得 chainID
+		// 疑问 该 chainID 与 循环的值有何不同？？？？？？？？？？
 		chainID := ledgerResources.ConfigtxValidator().ChainID()
 
+		// 如果存在 Consortiums 配置，则说明是系统通道
 		if _, ok := ledgerResources.ConsortiumsConfig(); ok {
 			if r.systemChannelID != "" {
+				// 如果已经设置系统通道名称，则说明已经创建了系统通道的链支持对象
 				logger.Panicf("There appear to be two system chains %s and %s", r.systemChannelID, chainID)
 			}
+			// 创建该通道的链支持对象
 			chain := newChainSupport(
-				r,
-				ledgerResources,
-				consenters,
-				signer)
+				r,	// 多通道管理器
+				ledgerResources, // 账本资源对象
+				consenters, // 共识组件字典
+				signer) // 签名者实体
+
+			// 创建默认通道配置模板 ？？？
+			// TODO: READ
 			r.templator = msgprocessor.NewDefaultTemplator(chain)
-			chain.Processor = msgprocessor.NewSystemChannel(chain, r.templator, msgprocessor.CreateSystemChannelFilters(r, chain))
+			// 创建系统通道消息处理器
+			// TODO: READ
+			chain.Processor = msgprocessor.NewSystemChannel(chain, r.templator,
+				msgprocessor.CreateSystemChannelFilters(r, chain))
 
 			// Retrieve genesis block to log its hash. See FAB-5450 for the purpose
 			iter, pos := rl.Iterator(&ab.SeekPosition{Type: &ab.SeekPosition_Oldest{Oldest: &ab.SeekOldest{}}})
@@ -162,18 +178,24 @@ func NewRegistrar(ledgerFactory blockledger.Factory, consenters map[string]conse
 			if pos != uint64(0) {
 				logger.Panicf("Error iterating over system channel: '%s', expected position 0, got %d", chainID, pos)
 			}
+			// 获取创世区块并在后续日志中记录其 hash（genesisBlock.Header.Hash()）
 			genesisBlock, status := iter.Next()
 			if status != cb.Status_SUCCESS {
 				logger.Panicf("Error reading genesis block of system channel '%s'", chainID)
 			}
 			logger.Infof("Starting system channel '%s' with genesis block hash %x and orderer type %s", chainID, genesisBlock.Header.Hash(), chain.SharedConfig().ConsensusType())
 
-			r.chains[chainID] = chain
-			r.systemChannelID = chainID
-			r.systemChannel = chain
+			// 将系统通道注册到多通道管理器（此处只会执行一次）
+			r.chains[chainID] = chain	// 注册到链支持对象字典
+			r.systemChannelID = chainID	// 设置系统通道 ID
+			r.systemChannel = chain	//	设置系统通道的链支持对象
 			// We delay starting this chain, as it might try to copy and replace the chains map via newChain before the map is fully built
-			defer chain.start()
+			defer chain.start() // TODO: for 循环中调用 defer
 		} else {
+			/*
+				不存在联盟配置，走该分支
+				直接创建链支持对象，注册到多通道注册管理器中
+			*/
 			logger.Debugf("Starting chain: %s", chainID)
 			chain := newChainSupport(
 				r,
@@ -181,9 +203,8 @@ func NewRegistrar(ledgerFactory blockledger.Factory, consenters map[string]conse
 				consenters,
 				signer)
 			r.chains[chainID] = chain
-			chain.start()
+			chain.start()	// TODO: 为什么此处不需要 defer
 		}
-
 	}
 
 	if r.systemChannelID == "" {
