@@ -22,6 +22,7 @@ type Consenter interface {
 	// The second argument to HandleChain is a pointer to the metadata stored on the `ORDERER` slot of
 	// the last block committed to the ledger of this Chain.  For a new chain, this metadata will be
 	// nil, as this field is not set on the genesis block
+	// 创建共识组件链对象
 	HandleChain(support ConsenterSupport, metadata *cb.Metadata) (Chain, error)
 }
 
@@ -43,7 +44,7 @@ type Chain interface {
 	// If the configSeq advances, it is the responsibility of the consenter
 	// to revalidate and potentially discard the message
 	// The consenter may return an error, indicating the message was not accepted
-	Order(env *cb.Envelope, configSeq uint64) error
+	Order(env *cb.Envelope, configSeq uint64) error	// 提交普通交易消息进行排序
 
 	// Configure accepts a message which reconfigures the channel and will
 	// trigger an update to the configSeq if committed.  The configuration must have
@@ -51,24 +52,24 @@ type Chain interface {
 	// it is the responsibility of the consenter to recompute the resulting config,
 	// discarding the message if the reconfiguration is no longer valid.
 	// The consenter may return an error, indicating the message was not accepted
-	Configure(config *cb.Envelope, configSeq uint64) error
+	Configure(config *cb.Envelope, configSeq uint64) error	// 提交通道配置交易消息进行通道管理
 
 	// WaitReady blocks waiting for consenter to be ready for accepting new messages.
 	// This is useful when consenter needs to temporarily block ingress messages so
 	// that in-flight messages can be consumed. It could return error if consenter is
 	// in erroneous states. If this blocking behavior is not desired, consenter could
 	// simply return nil.
-	WaitReady() error
+	WaitReady() error	// 检查并阻塞等待共识组件能够接收和处理新消息
 
 	// Errored returns a channel which will close when an error has occurred.
 	// This is especially useful for the Deliver client, who must terminate waiting
 	// clients when the consenter is not up to date.
-	Errored() <-chan struct{}
+	Errored() <-chan struct{}	// 返回通道，当发生错误时关闭该通道
 
 	// Start should allocate whatever resources are needed for staying up to date with the chain.
 	// Typically, this involves creating a thread which reads from the ordering source, passes those
 	// messages to a block cutter, and writes the resulting blocks to the ledger.
-	Start()
+	Start()	// 启动共识组件
 
 	// Halt frees the resources which were allocated for this Chain.
 	Halt()
@@ -76,31 +77,31 @@ type Chain interface {
 
 // ConsenterSupport provides the resources available to a Consenter implementation.
 type ConsenterSupport interface {
-	crypto.LocalSigner
-	msgprocessor.Processor
+	crypto.LocalSigner	// 本地签名者实体
+	msgprocessor.Processor	// 消息处理器
 
 	// BlockCutter returns the block cutting helper for this channel.
-	BlockCutter() blockcutter.Receiver
+	BlockCutter() blockcutter.Receiver	// 消息打包组件
 
 	// SharedConfig provides the shared config from the channel's current config block.
-	SharedConfig() channelconfig.Orderer
+	SharedConfig() channelconfig.Orderer	// 获取通道 orderer 配置
 
 	// CreateNextBlock takes a list of messages and creates the next block based on the block with highest block number committed to the ledger
 	// Note that either WriteBlock or WriteConfigBlock must be called before invoking this method a second time.
-	CreateNextBlock(messages []*cb.Envelope) *cb.Block
+	CreateNextBlock(messages []*cb.Envelope) *cb.Block	// 创建区块
 
 	// WriteBlock commits a block to the ledger.
-	WriteBlock(block *cb.Block, encodedMetadataValue []byte)
+	WriteBlock(block *cb.Block, encodedMetadataValue []byte)	// 提交封装了普通交易消息的区块到账本
 
 	// WriteConfigBlock commits a block to the ledger, and applies the config update inside.
-	WriteConfigBlock(block *cb.Block, encodedMetadataValue []byte)
+	WriteConfigBlock(block *cb.Block, encodedMetadataValue []byte)	// 提交配置区块到账本，创建新通道或更新通道配置
 
 	// Sequence returns the current config squence.
-	Sequence() uint64
+	Sequence() uint64 // 返回当前通道的配置序号
 
 	// ChainID returns the channel ID this support is associated with.
-	ChainID() string
+	ChainID() string	// 返回关联的通道 ID
 
 	// Height returns the number of blocks in the chain this channel is associated with.
-	Height() uint64
+	Height() uint64	// 返回关联的区块链结构高度
 }
