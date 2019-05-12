@@ -115,7 +115,11 @@ func Start(cmd string, conf *config.TopLevel) {
 	// 设置 tls 双向认证标志
 	mutualTLS := serverConfig.SecOpts.UseTLS && serverConfig.SecOpts.RequireClientCert
 	// 创建 orderer 排序服务器
-	server := NewServer(manager, signer, &conf.Debug, conf.General.Authentication.TimeWindow, mutualTLS)
+	server := NewServer(manager,
+		signer,
+		&conf.Debug,
+		conf.General.Authentication.TimeWindow,
+		mutualTLS)
 
 	switch cmd {
 	case start.FullCommand(): // "start" command

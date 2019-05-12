@@ -30,10 +30,10 @@ const RootGroupKey = "Channel"
 // same value.  The Bundle structure is immutable and will always be replaced in its
 // entirety, with new backing memory.
 type Bundle struct {
-	policyManager   policies.Manager
-	mspManager      msp.MSPManager
-	channelConfig   *ChannelConfig
-	configtxManager configtx.Validator
+	policyManager   policies.Manager	// 策略管理器
+	mspManager      msp.MSPManager		// MSP 组件管理器
+	channelConfig   *ChannelConfig		// 通道配置对象
+	configtxManager configtx.Validator	// 配置交易管理器
 }
 
 // PolicyManager returns the policy manager constructed for this config

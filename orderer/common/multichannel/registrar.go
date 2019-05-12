@@ -106,17 +106,21 @@ type Registrar struct {
 	callbacks       []func(bundle *channelconfig.Bundle)	// tls 认证连接回调函数列表 ？？？
 }
 
+//获取
 func getConfigTx(reader blockledger.Reader) *cb.Envelope {
+	// 获取最新区块
 	lastBlock := blockledger.GetBlock(reader, reader.Height()-1)
+	// 获取最新区块上元数据中的cb.BlockMetadataIndex_LAST_CONFIG索引项，解析获得最新配置区块的索引号 index
 	index, err := utils.GetLastConfigIndexFromBlock(lastBlock)
 	if err != nil {
 		logger.Panicf("Chain did not have appropriately encoded last config in its latest block: %s", err)
 	}
+	//从区块文件中获取指定区块号index对应的最新配置区块对象
 	configBlock := blockledger.GetBlock(reader, index)
 	if configBlock == nil {
 		logger.Panicf("Config block does not exist")
 	}
-
+	// 解析配置区块，获取第一个交易对象
 	return utils.ExtractEnvelopeOrPanic(configBlock, 0)
 }
 
@@ -252,6 +256,7 @@ func (r *Registrar) GetChain(chainID string) (*ChainSupport, bool) {
 }
 
 func (r *Registrar) newLedgerResources(configTx *cb.Envelope) *ledgerResources {
+	//
 	payload, err := utils.UnmarshalPayload(configTx.Payload)
 	if err != nil {
 		logger.Panicf("Error umarshaling envelope to payload: %s", err)

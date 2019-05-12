@@ -48,23 +48,31 @@ func newChainSupport(
 	cs := &ChainSupport{
 		ledgerResources: ledgerResources,
 		LocalSigner:     signer,
-		cutter:          blockcutter.NewReceiverImpl(ledgerResources),
+		cutter:          blockcutter.NewReceiverImpl(ledgerResources), // 消息切割组件（receiver 类型）
 	}
 
 	// Set up the msgprocessor
+	// 设置标准通道消息处理器
 	cs.Processor = msgprocessor.NewStandardChannel(cs, msgprocessor.CreateStandardChannelFilters(cs))
 
 	// Set up the block writer
+	// 将区块写入组件
 	cs.BlockWriter = newBlockWriter(lastBlock, registrar, cs)
 
 	// Set up the consenter
+	// 获取共识组件类型
 	consenterType := ledgerResources.SharedConfig().ConsensusType()
+	// 获取共识组件对象
 	consenter, ok := consenters[consenterType]
 	if !ok {
 		logger.Panicf("Error retrieving consenter of type: %s", consenterType)
 	}
 
-	cs.Chain, err = consenter.HandleChain(cs, metadata)
+	/*
+		链支持对象 cs 实现了 ConsenterSupport 接口，以支持 solo 和 kafka 共识组件链对象
+		solo 共识组件只使用了 cs 参数，kafka 共识组件则使用了两个参数
+	*/
+	cs.Chain, err = consenter.HandleChain(cs, metadata) // 创建共识组价链对象
 	if err != nil {
 		logger.Panicf("[channel: %s] Error creating consenter: %s", cs.ChainID(), err)
 	}

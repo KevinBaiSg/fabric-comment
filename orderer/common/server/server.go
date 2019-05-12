@@ -69,11 +69,18 @@ func (*deliverHandlerSupport) CreateBlockReply(block *cb.Block) proto.Message {
 
 // NewServer creates an ab.AtomicBroadcastServer based on the broadcast target and ledger Reader
 func NewServer(r *multichannel.Registrar, _ crypto.LocalSigner, debug *localconfig.Debug, timeWindow time.Duration, mutualTLS bool) ab.AtomicBroadcastServer {
+	// 创建 orderer 排序服务器
 	s := &server{
-		dh:        deliver.NewHandlerImpl(deliverSupport{Registrar: r}, timeWindow, mutualTLS),
-		bh:        broadcast.NewHandlerImpl(broadcastSupport{Registrar: r}),
-		debug:     debug,
-		Registrar: r,
+		dh: deliver.NewHandlerImpl(	// Deliver 服务处理句柄
+				deliverSupport{Registrar: r},
+				timeWindow,
+				mutualTLS),
+		bh: broadcast.NewHandlerImpl(	// Broadcast 服务处理句柄
+			broadcastSupport{
+				Registrar: r,
+			}),
+		debug: debug, // 调试信息
+		Registrar: r,	// 多通道注册管理器
 	}
 	return s
 }
