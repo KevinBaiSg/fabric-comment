@@ -68,13 +68,18 @@ func NewReceiverImpl(sharedConfigFetcher OrdererConfigFetcher) Receiver {
 //
 // Note that messageBatches can not be greater than 2.
 func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, pending bool) {
+	// 获取 config
 	ordererConfig, ok := r.sharedConfigFetcher.OrdererConfig()
 	if !ok {
 		logger.Panicf("Could not retrieve orderer config to query batch parameters, block cutting is not possible")
 	}
 	batchSize := ordererConfig.BatchSize()
 
-	messageSizeBytes := messageSizeBytes(msg)
+	messageSizeBytes := messageSizeBytes(msg) // 计算 message 的 size
+	/*
+		如果msg 大小已经大于区块最大限制，首先判断 pending 中是否有消息，如果有消息，首先把之前小区出块
+		然后把该消息出块
+	*/
 	if messageSizeBytes > batchSize.PreferredMaxBytes {
 		logger.Debugf("The current message, with %v bytes, is larger than the preferred batch size of %v bytes and will be isolated.", messageSizeBytes, batchSize.PreferredMaxBytes)
 
@@ -90,8 +95,10 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, p
 		return
 	}
 
+	// 计算是否溢出定义区块的大小
 	messageWillOverflowBatchSizeBytes := r.pendingBatchSizeBytes+messageSizeBytes > batchSize.PreferredMaxBytes
 
+	// 如果溢出 出块
 	if messageWillOverflowBatchSizeBytes {
 		logger.Debugf("The current message, with %v bytes, will overflow the pending batch of %v bytes.", messageSizeBytes, r.pendingBatchSizeBytes)
 		logger.Debugf("Pending batch would overflow if current message is added, cutting batch now.")
@@ -100,6 +107,7 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, p
 	}
 
 	logger.Debugf("Enqueuing message into batch")
+	// append 消息
 	r.pendingBatch = append(r.pendingBatch, msg)
 	r.pendingBatchSizeBytes += messageSizeBytes
 	pending = true
@@ -115,6 +123,7 @@ func (r *receiver) Ordered(msg *cb.Envelope) (messageBatches [][]*cb.Envelope, p
 }
 
 // Cut returns the current batch and starts a new one
+// 出块
 func (r *receiver) Cut() []*cb.Envelope {
 	batch := r.pendingBatch
 	r.pendingBatch = nil
@@ -122,6 +131,7 @@ func (r *receiver) Cut() []*cb.Envelope {
 	return batch
 }
 
+// 计算消息 size
 func messageSizeBytes(message *cb.Envelope) uint32 {
 	return uint32(len(message.Payload) + len(message.Signature))
 }
