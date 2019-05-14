@@ -41,6 +41,7 @@ type BlockWriter struct {
 	committingBlock    sync.Mutex
 }
 
+// 创建 BlockWriter
 func newBlockWriter(lastBlock *cb.Block, r *Registrar, support blockWriterSupport) *BlockWriter {
 	bw := &BlockWriter{
 		support:       support,
@@ -65,13 +66,15 @@ func newBlockWriter(lastBlock *cb.Block, r *Registrar, support blockWriterSuppor
 
 // CreateNextBlock creates a new block with the next block number, and the given contents.
 func (bw *BlockWriter) CreateNextBlock(messages []*cb.Envelope) *cb.Block {
-	previousBlockHash := bw.lastBlock.Header.Hash()
+	previousBlockHash := bw.lastBlock.Header.Hash() // 获取当前最新区块头部的 hash
 
+	// 创建空 BlockData 对象，大小为 len(messages)
 	data := &cb.BlockData{
 		Data: make([][]byte, len(messages)),
 	}
 
 	var err error
+	// 遍历批量交易集合messages 并序列化封装到到 BlockData 对象中
 	for i, msg := range messages {
 		data.Data[i], err = proto.Marshal(msg)
 		if err != nil {
@@ -79,8 +82,11 @@ func (bw *BlockWriter) CreateNextBlock(messages []*cb.Envelope) *cb.Block {
 		}
 	}
 
+	// 新建 Block 对象
 	block := cb.NewBlock(bw.lastBlock.Header.Number+1, previousBlockHash)
+	// 设置区块 hash
 	block.Header.DataHash = data.Hash()
+	// 设置交易集合数据
 	block.Data = data
 
 	return block
@@ -146,8 +152,12 @@ func (bw *BlockWriter) WriteConfigBlock(block *cb.Block, encodedMetadataValue []
 // annotate the block with metadata and signatures, and write the block to the ledger
 // then release the lock.  This allows the calling thread to begin assembling the next block
 // before the commit phase is complete.
+/*
+	写入区块到账本中
+*/
 func (bw *BlockWriter) WriteBlock(block *cb.Block, encodedMetadataValue []byte) {
-	bw.committingBlock.Lock()
+	bw.committingBlock.Lock() // 锁
+	// 更新最新区块
 	bw.lastBlock = block
 
 	go func() {
@@ -163,10 +173,10 @@ func (bw *BlockWriter) commitBlock(encodedMetadataValue []byte) {
 	if encodedMetadataValue != nil {
 		bw.lastBlock.Metadata.Metadata[cb.BlockMetadataIndex_ORDERER] = utils.MarshalOrPanic(&cb.Metadata{Value: encodedMetadataValue})
 	}
-	bw.addBlockSignature(bw.lastBlock)
-	bw.addLastConfigSignature(bw.lastBlock)
+	bw.addBlockSignature(bw.lastBlock)	// 添加区块元数据中的签名
+	bw.addLastConfigSignature(bw.lastBlock) // 添加区块元数据中的最新配置区块及其签名
 
-	err := bw.support.Append(bw.lastBlock)
+	err := bw.support.Append(bw.lastBlock) // 将最新区块添加到区块账本中
 	if err != nil {
 		logger.Panicf("[channel: %s] Could not append block: %s", bw.support.ChainID(), err)
 	}
