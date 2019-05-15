@@ -296,24 +296,34 @@ func (r *Registrar) newLedgerResources(configTx *cb.Envelope) *ledgerResources {
 	}
 }
 
+// 创建应用通道
 func (r *Registrar) newChain(configtx *cb.Envelope) {
+	// 基于给定的配置交易消息创建新的账本资源对象
 	ledgerResources := r.newLedgerResources(configtx)
+	// 添加当前新应用通道的创世区块
 	ledgerResources.Append(blockledger.CreateNextBlock(ledgerResources, []*cb.Envelope{configtx}))
 
 	// Copy the map to allow concurrent reads from broadcast/deliver while the new chainSupport is
+	/*
+		复制当前 orderer 上多通道注册管理器的 chains 链支持对象字典，
+		允许同事提供 broadcast/deliver 服务
+	*/
 	newChains := make(map[string]*ChainSupport)
 	for key, value := range r.chains {
-		newChains[key] = value
+		newChains[key] = value // 复制链支持对象字典
 	}
 
+	// 创建新的链支持对象
 	cs := newChainSupport(r, ledgerResources, r.consenters, r.signer)
+	// 重新获得通道 id
 	chainID := ledgerResources.ConfigtxValidator().ChainID()
 
 	logger.Infof("Created and starting new chain %s", chainID)
 
-	newChains[string(chainID)] = cs
-	cs.start()
+	newChains[string(chainID)] = cs // 设置指定通道及其链支持对象，使用 chainID 作为 key
+	cs.start()	// 启动链支持对象，实际启动共识组件链对象
 
+	// 更新多通道注册管理器上的链支持对象字典 chains
 	r.chains = newChains
 }
 
