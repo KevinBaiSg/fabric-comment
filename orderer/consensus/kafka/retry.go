@@ -22,7 +22,13 @@ type retryProcess struct {
 	fn                                 func() error
 }
 
-func newRetryProcess(retryOptions localconfig.Retry, exit chan struct{}, channel channel, msg string, fn func() error) *retryProcess {
+// 新建 Retry Process
+func newRetryProcess(
+	retryOptions localconfig.Retry,
+	exit chan struct{},
+	channel channel,
+	msg string,
+	fn func() error) *retryProcess {
 	return &retryProcess{
 		shortPollingInterval: retryOptions.ShortInterval,
 		shortTimeout:         retryOptions.ShortTotal,
@@ -35,6 +41,11 @@ func newRetryProcess(retryOptions localconfig.Retry, exit chan struct{}, channel
 	}
 }
 
+/*
+	retry 会调用 try() 接口
+	ShortInterval：重试时间
+	ShortTotal：超时退出
+*/
 func (rp *retryProcess) retry() error {
 	if err := rp.try(rp.shortPollingInterval, rp.shortTimeout); err != nil {
 		logger.Debugf("[channel: %s] Switching to the long retry interval", rp.channel.topic())
@@ -69,13 +80,13 @@ func (rp *retryProcess) try(interval, total time.Duration) (err error) {
 
 	for {
 		select {
-		case <-rp.exit:
+		case <-rp.exit:	// 外部结束
 			exitErr := fmt.Errorf("[channel: %s] process asked to exit", rp.channel.topic())
 			logger.Warning(exitErr.Error()) // Log it at the warning level
 			return exitErr
-		case <-tickTotal.C:
+		case <-tickTotal.C:	// 超时退出
 			return
-		case <-tickInterval.C:
+		case <-tickInterval.C: // 超时重试
 			logger.Debugf("[channel: %s] "+rp.msg, rp.channel.topic())
 			if err = rp.fn(); err == nil {
 				logger.Debugf("[channel: %s] Error is nil, breaking the retry loop", rp.channel.topic())
