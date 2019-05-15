@@ -25,6 +25,9 @@ import (
 )
 
 // NewBlock construct a block with no data and no metadata.
+/*
+	注意：no data and no metadata
+*/
 func NewBlock(seqNum uint64, previousHash []byte) *Block {
 	block := &Block{}
 	block.Header = &BlockHeader{}
@@ -48,6 +51,9 @@ type asn1Header struct {
 }
 
 // Bytes returns the ASN.1 marshaled representation of the block header.
+/*
+	ASN.1 编码
+*/
 func (b *BlockHeader) Bytes() []byte {
 	asn1Header := asn1Header{
 		PreviousHash: b.PreviousHash,
