@@ -96,11 +96,13 @@ func (bw *BlockWriter) CreateNextBlock(messages []*cb.Envelope) *cb.Block {
 // This call will block until the new config has taken effect, then will return
 // while the block is written asynchronously to disk.
 func (bw *BlockWriter) WriteConfigBlock(block *cb.Block, encodedMetadataValue []byte) {
+	// 从配置区块中提取第一个交易消息
 	ctx, err := utils.ExtractEnvelope(block, 0)
 	if err != nil {
 		logger.Panicf("Told to write a config block, but could not get configtx: %s", err)
 	}
 
+	// 解析获得 payload
 	payload, err := utils.UnmarshalPayload(ctx.Payload)
 	if err != nil {
 		logger.Panicf("Told to write a config block, but configtx payload is invalid: %s", err)
@@ -110,34 +112,40 @@ func (bw *BlockWriter) WriteConfigBlock(block *cb.Block, encodedMetadataValue []
 		logger.Panicf("Told to write a config block, but configtx payload header is missing")
 	}
 
+	// 解析消息头部
 	chdr, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
 	if err != nil {
 		logger.Panicf("Told to write a config block with an invalid channel header: %s", err)
 	}
 
 	switch chdr.Type {
-	case int32(cb.HeaderType_ORDERER_TRANSACTION):
+	case int32(cb.HeaderType_ORDERER_TRANSACTION): // 用于创建新的应用通道
+		// 解析通道配置交易消息
 		newChannelConfig, err := utils.UnmarshalEnvelope(payload.Data)
 		if err != nil {
 			logger.Panicf("Told to write a config block with new channel, but did not have config update embedded: %s", err)
 		}
-		bw.registrar.newChain(newChannelConfig)
-	case int32(cb.HeaderType_CONFIG):
+		bw.registrar.newChain(newChannelConfig) // 创建新的应用通道
+	case int32(cb.HeaderType_CONFIG):	// 用于更新通道配置
+		// 解析通道配置交易消息
 		configEnvelope, err := configtx.UnmarshalConfigEnvelope(payload.Data)
 		if err != nil {
 			logger.Panicf("Told to write a config block with new channel, but did not have config envelope encoded: %s", err)
 		}
 
+		// 验证通道配置交易消息的合法性
 		err = bw.support.Validate(configEnvelope)
 		if err != nil {
 			logger.Panicf("Told to write a config block with new config, but could not apply it: %s", err)
 		}
 
+		// 基于新的通道配置交易消息创建通道配置实体对象
 		bundle, err := bw.support.CreateBundle(chdr.ChannelId, configEnvelope.Config)
 		if err != nil {
 			logger.Panicf("Told to write a config block with a new config, but could not convert it to a bundle: %s", err)
 		}
 
+		// 更新通道上链支持对象的通道配置实体
 		bw.support.Update(bundle)
 	default:
 		logger.Panicf("Told to write a config block with unknown header type: %v", chdr.Type)
