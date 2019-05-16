@@ -235,28 +235,42 @@ func (chain *chainImpl) enqueue(kafkaMsg *ab.KafkaMessage) bool {
 func startThread(chain *chainImpl) {
 	var err error
 
-	// Set up the producer
-	chain.producer, err = setupProducerForChannel(chain.consenter.retryOptions(), chain.haltChan, chain.SharedConfig().KafkaBrokers(), chain.consenter.brokerConfig(), chain.channel)
+	// Set up the producer 生产者
+	chain.producer, err = setupProducerForChannel(
+		chain.consenter.retryOptions(),
+		chain.haltChan,
+		chain.SharedConfig().KafkaBrokers(),
+		chain.consenter.brokerConfig(), chain.channel)
 	if err != nil {
 		logger.Panicf("[channel: %s] Cannot set up producer = %s", chain.channel.topic(), err)
 	}
 	logger.Infof("[channel: %s] Producer set up successfully", chain.ChainID())
 
-	// Have the producer post the CONNECT message
+	// Have the producer post the CONNECT message 生产者发送 CONNECT 消息建立连接
 	if err = sendConnectMessage(chain.consenter.retryOptions(), chain.haltChan, chain.producer, chain.channel); err != nil {
 		logger.Panicf("[channel: %s] Cannot post CONNECT message = %s", chain.channel.topic(), err)
 	}
 	logger.Infof("[channel: %s] CONNECT message posted successfully", chain.channel.topic())
 
-	// Set up the parent consumer
-	chain.parentConsumer, err = setupParentConsumerForChannel(chain.consenter.retryOptions(), chain.haltChan, chain.SharedConfig().KafkaBrokers(), chain.consenter.brokerConfig(), chain.channel)
+	// Set up the parent consumer 消费者
+	chain.parentConsumer, err = setupParentConsumerForChannel(
+		chain.consenter.retryOptions(),
+		chain.haltChan,
+		chain.SharedConfig().KafkaBrokers(),
+		chain.consenter.brokerConfig(),
+		chain.channel)
 	if err != nil {
 		logger.Panicf("[channel: %s] Cannot set up parent consumer = %s", chain.channel.topic(), err)
 	}
 	logger.Infof("[channel: %s] Parent consumer set up successfully", chain.channel.topic())
 
-	// Set up the channel consumer
-	chain.channelConsumer, err = setupChannelConsumerForChannel(chain.consenter.retryOptions(), chain.haltChan, chain.parentConsumer, chain.channel, chain.lastOffsetPersisted+1)
+	// Set up the channel consumer 创建kafka分区消费者
+	chain.channelConsumer, err = setupChannelConsumerForChannel(
+		chain.consenter.retryOptions(),
+		chain.haltChan,
+		chain.parentConsumer,
+		chain.channel,
+		chain.lastOffsetPersisted+1)
 	if err != nil {
 		logger.Panicf("[channel: %s] Cannot set up channel consumer = %s", chain.channel.topic(), err)
 	}
@@ -264,11 +278,13 @@ func startThread(chain *chainImpl) {
 
 	chain.doneProcessingMessagesToBlocks = make(chan struct{})
 
+	// 关闭已经启动共识组件链对象，表示启动成功，解除阻塞Broadcast服务处理句柄
 	close(chain.startChan)                // Broadcast requests will now go through
+	// 创建 errorChan 通道，不阻塞deliver服务处理句柄
 	chain.errorChan = make(chan struct{}) // Deliver requests will also go through
 
 	logger.Infof("[channel: %s] Start phase completed successfully", chain.channel.topic())
-
+	// 创建消息处理循环，循环处理订阅分区上接收到的消息
 	chain.processMessagesToBlocks() // Keep up to date with the channel
 }
 
@@ -298,12 +314,12 @@ func (chain *chainImpl) processMessagesToBlocks() ([]uint64, error) {
 	var deliverSessionTimedOut <-chan time.Time
 
 	for {
-		select {
-		case <-chain.haltChan:
+		select {	// 没有default分支，必须阻塞等待下面某个case分支满足条件之后再继续执行
+		case <-chain.haltChan: // 通知停止和退出消息处理循环
 			logger.Warningf("[channel: %s] Consenter for channel exiting", chain.ChainID())
 			counts[indexExitChanPass]++
 			return counts, nil
-		case kafkaErr := <-chain.channelConsumer.Errors():
+		case kafkaErr := <-chain.channelConsumer.Errors(): // 返回错误消息: kafka集群分区消费者的故障与错误
 			logger.Errorf("[channel: %s] Error during consumption: %s", chain.ChainID(), kafkaErr)
 			counts[indexRecvError]++
 			select {
@@ -339,7 +355,7 @@ func (chain *chainImpl) processMessagesToBlocks() ([]uint64, error) {
 			default: // we are ignoring the error
 				logger.Warningf("[channel: %s] Deliver sessions will be dropped if consumption errors continue.", chain.ChainID())
 			}
-		case <-topicPartitionSubscriptionResumed:
+		case <-topicPartitionSubscriptionResumed: // 通道与deliverSessionTimedOut 通道：该通道消息用于辅助处理kafka集群分区消费者的故障与错误
 			// stop listening for subscription message
 			saramaLogger.RemoveListener(subscription, topicPartitionSubscriptionResumed)
 			// disable subscription event chan
@@ -363,7 +379,12 @@ func (chain *chainImpl) processMessagesToBlocks() ([]uint64, error) {
 			// make chain available again via CONNECT message trigger
 			go sendConnectMessage(chain.consenter.retryOptions(), chain.haltChan, chain.producer, chain.channel)
 
-		case in, ok := <-chain.channelConsumer.Messages():
+		case in, ok := <-chain.channelConsumer.Messages(): // 接收正常的kafka分区消费者消息（大部分正常消息情况下）
+		/*
+			返回通道消息
+			从kafka集群指定主题与分区上接收的kafka消息，包括 KafkaMessage_Regular、
+			KafkaMessage_TimeToCut、KafkaMessage_Connect 类型
+		*/
 			if !ok {
 				logger.Criticalf("[channel: %s] Kafka consumer closed.", chain.ChainID())
 				return counts, nil
@@ -383,12 +404,12 @@ func (chain *chainImpl) processMessagesToBlocks() ([]uint64, error) {
 			}
 
 			select {
-			case <-chain.errorChan: // If this channel was closed...
+			case <-chain.errorChan: // If this channel was closed... 如果该通道已经关闭，则重新创建该通道
 				chain.errorChan = make(chan struct{}) // ...make a new one.
 				logger.Infof("[channel: %s] Marked consenter as available again", chain.ChainID())
 			default:
 			}
-			if err := proto.Unmarshal(in.Value, msg); err != nil {
+			if err := proto.Unmarshal(in.Value, msg); err != nil { // 解析kafka消息
 				// This shouldn't happen, it should be filtered at ingress
 				logger.Criticalf("[channel: %s] Unable to unmarshal consumed message = %s", chain.ChainID(), err)
 				counts[indexUnmarshalError]++
@@ -397,27 +418,32 @@ func (chain *chainImpl) processMessagesToBlocks() ([]uint64, error) {
 				logger.Debugf("[channel: %s] Successfully unmarshalled consumed message, offset is %d. Inspecting type...", chain.ChainID(), in.Offset)
 				counts[indexRecvPass]++
 			}
-			switch msg.Type.(type) {
-			case *ab.KafkaMessage_Connect:
-				_ = chain.processConnect(chain.ChainID())
-				counts[indexProcessConnectPass]++
-			case *ab.KafkaMessage_TimeToCut:
+			switch msg.Type.(type) { // 判断kafka消息类型
+			case *ab.KafkaMessage_Connect:	// kafka连接消息
+				_ = chain.processConnect(chain.ChainID()) // 处理 CONNECT 连接消息，不做任何事情
+				counts[indexProcessConnectPass]++ // 成功处理消息计数增1
+			case *ab.KafkaMessage_TimeToCut:	// kafka定时切割生成区块消息
+				// 处理 TimeToCut 类型消息
 				if err := chain.processTimeToCut(msg.GetTimeToCut(), in.Offset); err != nil {
 					logger.Warningf("[channel: %s] %s", chain.ChainID(), err)
 					logger.Criticalf("[channel: %s] Consenter for channel exiting", chain.ChainID())
 					counts[indexProcessTimeToCutError]++
 					return counts, err // TODO Revisit whether we should indeed stop processing the chain at this point
 				}
-				counts[indexProcessTimeToCutPass]++
-			case *ab.KafkaMessage_Regular:
+				counts[indexProcessTimeToCutPass]++ // 成功处理消息计数增1
+			case *ab.KafkaMessage_Regular:	// kafka 常规消息
+				// 处理 kafka 常规消息
 				if err := chain.processRegular(msg.GetRegular(), in.Offset); err != nil {
 					logger.Warningf("[channel: %s] Error when processing incoming message of type REGULAR = %s", chain.ChainID(), err)
 					counts[indexProcessRegularError]++
 				} else {
-					counts[indexProcessRegularPass]++
+					counts[indexProcessRegularPass]++ // 成功处理消息计数增1
 				}
 			}
 		case <-chain.timer:
+			/*
+				按照固定出块时间（2秒）周期性调用 sendTimeToCut
+			*/
 			if err := sendTimeToCut(chain.producer, chain.channel, chain.lastCutBlockNumber+1, &chain.timer); err != nil {
 				logger.Errorf("[channel: %s] cannot post time-to-cut message = %s", chain.ChainID(), err)
 				// Do not return though
@@ -526,6 +552,7 @@ func newTimeToCutMessage(blockNumber uint64) *ab.KafkaMessage {
 	}
 }
 
+// 新建生产者消息
 func newProducerMessage(channel channel, pld []byte) *sarama.ProducerMessage {
 	return &sarama.ProducerMessage{
 		Topic: channel.topic(),
@@ -539,6 +566,7 @@ func (chain *chainImpl) processConnect(channelName string) error {
 	return nil
 }
 
+// 处理kafka常规消息
 func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, receivedOffset int64) error {
 	// When committing a normal message, we also update `lastOriginalOffsetProcessed` with `newOffset`.
 	// It is caller's responsibility to deduce correct value of `newOffset` based on following rules:
@@ -658,7 +686,8 @@ func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, r
 	//
 	// The implicit assumption here is that the resubmission capability flag is set only when there are no more
 	// pre-v1.1 orderers on the network. Otherwise it is unset, and this is what we call a compatibility mode.
-	if regularMessage.Class == ab.KafkaMessageRegular_UNKNOWN || !chain.SharedConfig().Capabilities().Resubmission() {
+	if regularMessage.Class == ab.KafkaMessageRegular_UNKNOWN ||
+			!chain.SharedConfig().Capabilities().Resubmission() {
 		// Received regular message of type UNKNOWN or resubmission if off, indicating an OSN network with v1.0.x orderer
 		logger.Warningf("[channel: %s] This orderer is running in compatibility mode", chain.ChainID())
 
@@ -694,10 +723,10 @@ func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, r
 	}
 
 	switch regularMessage.Class {
-	case ab.KafkaMessageRegular_UNKNOWN:
+	case ab.KafkaMessageRegular_UNKNOWN: // 未知交易类型
 		logger.Panicf("[channel: %s] Kafka message of type UNKNOWN should have been processed already", chain.ChainID())
 
-	case ab.KafkaMessageRegular_NORMAL:
+	case ab.KafkaMessageRegular_NORMAL:	// 普通交易消息类型
 		// This is a message that is re-validated and re-ordered
 		if regularMessage.OriginalOffset != 0 {
 			logger.Debugf("[channel: %s] Received re-submitted normal message with original offset %d", chain.ChainID(), regularMessage.OriginalOffset)
@@ -749,12 +778,19 @@ func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, r
 
 		commitNormalMsg(env, offset)
 
-	case ab.KafkaMessageRegular_CONFIG:
+	case ab.KafkaMessageRegular_CONFIG:	// 通道配置交易类型
 		// This is a message that is re-validated and re-ordered
+		/*
+			如果 OriginalOffset 不是 0， 则说明这个配置交易消息是重新验证和重新排序的
+		*/
 		if regularMessage.OriginalOffset != 0 {
 			logger.Debugf("[channel: %s] Received re-submitted config message with original offset %d", chain.ChainID(), regularMessage.OriginalOffset)
 
 			// But we've reprocessed it already
+			/*
+				检查合法性，若不大于 lastOriginalOffsetProcessed 最近已经处理消息的偏移量（所有消息）
+				则说明已经处理过该消息了，此时丢弃消息直接返回
+			*/
 			if regularMessage.OriginalOffset <= chain.lastOriginalOffsetProcessed {
 				logger.Debugf(
 					"[channel: %s] OriginalOffset(%d) <= LastOriginalOffsetProcessed(%d), message has been consumed already, discard",
@@ -767,6 +803,9 @@ func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, r
 					"this is the first time we receive this re-submitted config message",
 				chain.ChainID(), regularMessage.OriginalOffset, chain.lastOriginalOffsetProcessed)
 
+			/*
+				确认这事最近一次重新排序的配置消息，且通道配置序号是最新的，所以不需要重新验证，解除阻塞
+			*/
 			if regularMessage.OriginalOffset == chain.lastResubmittedConfigOffset && // This is very last resubmitted config message
 				regularMessage.ConfigSeq == seq { // AND we don't need to resubmit it again
 				logger.Debugf("[channel: %s] Config message with original offset %d is the last in-flight resubmitted message"+
@@ -778,6 +817,12 @@ func (chain *chainImpl) processRegular(regularMessage *ab.KafkaMessageRegular, r
 			// that message was considered invalid by us during revalidation, however somebody else deemed it to
 			// be valid, and resubmitted it. We need to advance lastResubmittedConfigOffset in this case in order
 			// to enforce consistency across the network.
+			/*
+				存在其他 orderer 节点重新提交了配置消息，但是本地 orderer 节点没有重新提交该消息。
+				这是由于所有 orderer 节点对消息合法性标准认定不一致而造成的，因此这里需要主动修正
+				更新本地通道的最新重新提交排序的配置交易消息初始偏移量 lastResubmittedConfigOffset，
+				以保证网络中所有 orderer 节点数据的一致性（以消息携带的初始偏移量为标准）
+			*/
 			if chain.lastResubmittedConfigOffset < regularMessage.OriginalOffset {
 				chain.lastResubmittedConfigOffset = regularMessage.OriginalOffset
 			}
@@ -853,10 +898,16 @@ func (chain *chainImpl) processTimeToCut(ttcMessage *ab.KafkaMessageTimeToCut, r
 // Post a CONNECT message to the channel using the given retry options. This
 // prevents the panicking that would occur if we were to set up a consumer and
 // seek on a partition that hadn't been written to yet.
-func sendConnectMessage(retryOptions localconfig.Retry, exitChan chan struct{}, producer sarama.SyncProducer, channel channel) error {
+func sendConnectMessage(
+	retryOptions localconfig.Retry,
+	exitChan chan struct{},
+	producer sarama.SyncProducer,
+	channel channel) error {
 	logger.Infof("[channel: %s] About to post the CONNECT message...", channel.topic())
 
+	// 新建 CONNECT Message 并编码
 	payload := utils.MarshalOrPanic(newConnectMessage())
+	// 新建生产者消息
 	message := newProducerMessage(channel, payload)
 
 	retryMsg := "Attempting to post the CONNECT message..."
@@ -900,7 +951,12 @@ func setupChannelConsumerForChannel(retryOptions localconfig.Retry, haltChan cha
 }
 
 // Sets up the parent consumer for a channel using the given retry options.
-func setupParentConsumerForChannel(retryOptions localconfig.Retry, haltChan chan struct{}, brokers []string, brokerConfig *sarama.Config, channel channel) (sarama.Consumer, error) {
+func setupParentConsumerForChannel(
+	retryOptions localconfig.Retry,
+	haltChan chan struct{},
+	brokers []string,
+	brokerConfig *sarama.Config,
+	channel channel) (sarama.Consumer, error) {
 	var err error
 	var parentConsumer sarama.Consumer
 
@@ -916,17 +972,31 @@ func setupParentConsumerForChannel(retryOptions localconfig.Retry, haltChan chan
 }
 
 // Sets up the writer/producer for a channel using the given retry options.
-func setupProducerForChannel(retryOptions localconfig.Retry, haltChan chan struct{}, brokers []string, brokerConfig *sarama.Config, channel channel) (sarama.SyncProducer, error) {
+/*
+	新建 kafka 生产者
+*/
+func setupProducerForChannel(
+	retryOptions localconfig.Retry,	// localconfig.Retry 类型
+	haltChan chan struct{},	// 退出 chan
+	brokers []string,	// kafka broker 数组
+	brokerConfig *sarama.Config, // sarama Config
+	// kafka channel
+	channel channel) (sarama.SyncProducer, error) {
 	var err error
+	// 申明 sarama.SyncProducer
 	var producer sarama.SyncProducer
 
 	logger.Infof("[channel: %s] Setting up the producer for this channel...", channel.topic())
 
 	retryMsg := "Connecting to the Kafka cluster"
 	setupProducer := newRetryProcess(retryOptions, haltChan, channel, retryMsg, func() error {
+		// retry() 内部会调用该 fn
 		producer, err = sarama.NewSyncProducer(brokers, brokerConfig)
 		return err
 	})
 
+	/*
+
+	*/
 	return producer, setupProducer.retry()
 }

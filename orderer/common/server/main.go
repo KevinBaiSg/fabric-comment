@@ -124,9 +124,12 @@ func Start(cmd string, conf *config.TopLevel) {
 	switch cmd {
 	case start.FullCommand(): // "start" command
 		logger.Infof("Starting %s", metadata.GetVersionInfo())
+		//
 		initializeProfilingService(conf)
+		//
 		ab.RegisterAtomicBroadcastServer(grpcServer.Server(), server)
 		logger.Info("Beginning to serve requests")
+		//
 		grpcServer.Start()
 	case benchmark.FullCommand(): // "benchmark" command
 		logger.Info("Starting orderer in benchmark mode")
