@@ -96,31 +96,33 @@ func (i *fileLedgerIterator) Close() {
 // starting block number
 func (fl *FileLedger) Iterator(startPosition *ab.SeekPosition) (blockledger.Iterator, uint64) {
 	var startingBlockNumber uint64
-	switch start := startPosition.Type.(type) {
-	case *ab.SeekPosition_Oldest:
+	switch start := startPosition.Type.(type) {	/*分析起始位置类型*/
+	case *ab.SeekPosition_Oldest: /*搜索最旧区块，区块号为 0 */
 		startingBlockNumber = 0
-	case *ab.SeekPosition_Newest:
-		info, err := fl.blockStore.GetBlockchainInfo()
+	case *ab.SeekPosition_Newest:	/*搜索最新区块*/
+		info, err := fl.blockStore.GetBlockchainInfo() /*获取区块链信息*/
 		if err != nil {
 			logger.Panic(err)
 		}
-		newestBlockNumber := info.Height - 1
+		newestBlockNumber := info.Height - 1	/*最新区块号*/
 		startingBlockNumber = newestBlockNumber
-	case *ab.SeekPosition_Specified:
+	case *ab.SeekPosition_Specified:	/*搜索指定位置区块*/
 		startingBlockNumber = start.Specified.Number
 		height := fl.Height()
-		if startingBlockNumber > height {
+		if startingBlockNumber > height {	/*若超过高度，则报错*/
 			return &blockledger.NotFoundErrorIterator{}, 0
 		}
 	default:
 		return &blockledger.NotFoundErrorIterator{}, 0
 	}
 
+	// 构造区块迭代器
 	iterator, err := fl.blockStore.RetrieveBlocks(startingBlockNumber)
 	if err != nil {
 		return &blockledger.NotFoundErrorIterator{}, 0
 	}
 
+	// 构造账本区块迭代器
 	return &fileLedgerIterator{ledger: fl, blockNumber: startingBlockNumber, commonIterator: iterator}, startingBlockNumber
 }
 
