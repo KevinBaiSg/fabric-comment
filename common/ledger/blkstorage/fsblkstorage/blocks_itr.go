@@ -37,15 +37,16 @@ func newBlockItr(mgr *blockfileMgr, startBlockNum uint64) *blocksItr {
 }
 
 func (itr *blocksItr) waitForBlock(blockNum uint64) uint64 {
+	/* mgr: 区块文件管理器 */
 	itr.mgr.cpInfoCond.L.Lock()
 	defer itr.mgr.cpInfoCond.L.Unlock()
 	for itr.mgr.cpInfo.lastBlockNumber < blockNum && !itr.shouldClose() {
 		logger.Debugf("Going to wait for newer blocks. maxAvailaBlockNumber=[%d], waitForBlockNum=[%d]",
 			itr.mgr.cpInfo.lastBlockNumber, blockNum)
-		itr.mgr.cpInfoCond.Wait()
+		itr.mgr.cpInfoCond.Wait()/*阻塞等待，直到有新区块生成通知唤醒*/
 		logger.Debugf("Came out of wait. maxAvailaBlockNumber=[%d]", itr.mgr.cpInfo.lastBlockNumber)
 	}
-	return itr.mgr.cpInfo.lastBlockNumber
+	return itr.mgr.cpInfo.lastBlockNumber/*等待指定区块创建完毕，返回该区块号*/
 }
 
 func (itr *blocksItr) initStream() error {
@@ -73,21 +74,21 @@ func (itr *blocksItr) Next() (ledger.QueryResult, error) {
 	}
 	itr.closeMarkerLock.Lock()
 	defer itr.closeMarkerLock.Unlock()
-	if itr.closeMarker {
+	if itr.closeMarker {	/*已关闭，直接返回 nil */
 		return nil, nil
 	}
-	if itr.stream == nil {
+	if itr.stream == nil {	/*检查文件流*/
 		logger.Debugf("Initializing block stream for iterator. itr.maxBlockNumAvailable=%d", itr.maxBlockNumAvailable)
-		if err := itr.initStream(); err != nil {
+		if err := itr.initStream(); err != nil {	/*初始化指定区块的区块数据文件流*/
 			return nil, err
 		}
 	}
-	nextBlockBytes, err := itr.stream.nextBlockBytes()
+	nextBlockBytes, err := itr.stream.nextBlockBytes()/*获取下一个区块的字节数组*/
 	if err != nil {
 		return nil, err
 	}
-	itr.blockNumToRetrieve++
-	return deserializeBlock(nextBlockBytes)
+	itr.blockNumToRetrieve++	/*指定获取的区块号增1*/
+	return deserializeBlock(nextBlockBytes) /*解析区块数据*/
 }
 
 // Close releases any resources held by the iterator
