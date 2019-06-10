@@ -247,8 +247,9 @@ func (g *gossipServiceImpl) InitializeChannel(chainID string, endpoints []string
 		distributor: privdata2.NewDistributor(chainID, g),
 	}
 	g.chains[chainID] = state.NewGossipStateProvider(chainID, servicesAdapter, coordinator)
-	if g.deliveryService[chainID] == nil {
+	if g.deliveryService[chainID] == nil {/*检查是否已存在Deliver服务实例*/
 		var err error
+		// 创建deliver服务实例对象
 		g.deliveryService[chainID], err = g.deliveryFactory.Service(g, endpoints, g.mcs)
 		if err != nil {
 			logger.Warningf("Cannot create delivery client, due to %+v", errors.WithStack(err))
@@ -271,13 +272,15 @@ func (g *gossipServiceImpl) InitializeChannel(chainID string, endpoints []string
 			logger.Panic("Setting both orgLeader and useLeaderElection to true isn't supported, aborting execution")
 		}
 
-		if leaderElection {
+		if leaderElection {/*启用了动态Leader主节点选举机制*/
 			logger.Debug("Delivery uses dynamic leader election mechanism, channel", chainID)
+			// 创建选举模块
 			g.leaderElection[chainID] = g.newLeaderElectionComponent(chainID, g.onStatusChangeFactory(chainID, support.Committer))
-		} else if isStaticOrgLeader {
+		} else if isStaticOrgLeader {/*若静态指定了Leader主节点，则连接Orderer节点请求区块数据*/
 			logger.Debug("This peer is configured to connect to ordering service for blocks delivery, channel", chainID)
+			//启动指定通道上的deliver服务实例请求获取区块数据
 			g.deliveryService[chainID].StartDeliverForChannel(chainID, support.Committer, func() {})
-		} else {
+		} else { /*错误情况*/
 			logger.Debug("This peer is not configured to connect to ordering service for blocks delivery, channel", chainID)
 		}
 	} else {
