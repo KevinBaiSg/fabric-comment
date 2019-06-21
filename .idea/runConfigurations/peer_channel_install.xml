@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="peer-channel-install" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="fabric-comment" />
+    <working_directory value="$PROJECT_DIR$" />
+    <go_parameters value="-i -mod=vendor" />
+    <parameters value="chaincode install -p github.com/hyperledger/fabric/examples/chaincode/go/chaincode_example02 -n mycc -v 1.0" />
+    <envs>
+      <env name="CORE_PEER_LOCALMSPID" value="DEFAULT" />
+      <env name=" CORE_PEER_ID" value="cli" />
+      <env name=" CORE_PEER_ADDRESS" value="127.0.0.1:7051" />
+      <env name=" FABRIC_CFG_PATH" value="$PROJECT_DIR$/dev-network" />
+    </envs>
+    <kind value="DIRECTORY" />
+    <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/orderer/main.go" />
+    <package value="github.com/hyperledger/fabric" />
+    <directory value="$PROJECT_DIR$/peer" />
+    <output_directory value="$PROJECT_DIR$/peer" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -10,7 +10,6 @@ node-cli/node-cli
 docs/build/*
 gotools/build/*
 examples/e2e_cli/docker-compose-e2e.yamlt
-.idea
 *.iml
 .DS_Store
 tags
@@ -58,3 +57,17 @@ examples/e2e_cli/crypto-config/*
 .tox/
 # vscode settings
 .vscode
+
+# Goland
+.idea/*
+!.idea/runConfigurations/
+
+# dev-network
+dev-network
+
+# orderer
+orderer/orderer
+orderer/orb.db
+
+# peer
+peer/peer_node
