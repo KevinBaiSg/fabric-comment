@@ -7,7 +7,7 @@
       <env name="ORDERER_GENERAL_LISTENADDRESS" value="0.0.0.0" />
       <env name="ORDERER_GENERAL_GENESISMETHOD" value="file" />
       <env name="ORDERER_GENERAL_LOCALMSPID" value="DEFAULT" />
-      <env name="ORDERER_GENERAL_GENESISFILE" value="$PROJECT_DIR$/fabric-network/dev-network/config/orderer.block" />
+      <env name="FABRIC_CFG_PATH" value="$PROJECT_DIR$/fabric-network/dev-network" />
       <env name="ORDERER_GENERAL_LOCALMSPDIR" value="$PROJECT_DIR$/fabric-network/dev-network/msp" />
     </envs>
     <kind value="DIRECTORY" />

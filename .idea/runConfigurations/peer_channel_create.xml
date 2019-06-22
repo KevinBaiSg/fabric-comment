@@ -6,8 +6,9 @@
     <parameters value="channel create -c myc -f $PROJECT_DIR$/dev-network/config/myc.tx -o 127.0.0.1:7050" />
     <envs>
       <env name="CORE_PEER_LOCALMSPID" value="DEFAULT" />
-      <env name=" CORE_PEER_ID" value="cli" />
-      <env name=" CORE_PEER_ADDRESS" value="127.0.0.1:7051" />
+      <env name="CORE_PEER_ID" value="cli" />
+      <env name="CORE_PEER_ADDRESS" value="127.0.0.1:7051" />
+      <env name="FABRIC_CFG_PATH" value="$PROJECT_DIR$/fabric-network/dev-network" />
     </envs>
     <kind value="DIRECTORY" />
     <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/orderer/main.go" />
