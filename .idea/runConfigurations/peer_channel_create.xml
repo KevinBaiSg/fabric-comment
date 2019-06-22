@@ -8,7 +8,6 @@
       <env name="CORE_PEER_LOCALMSPID" value="DEFAULT" />
       <env name=" CORE_PEER_ID" value="cli" />
       <env name=" CORE_PEER_ADDRESS" value="127.0.0.1:7051" />
-      <env name=" FABRIC_CFG_PATH" value="$PROJECT_DIR$/dev-network" />
     </envs>
     <kind value="DIRECTORY" />
     <filePath value="$PROJECT_DIR$/|$PROJECT_DIR$/orderer/main.go" />

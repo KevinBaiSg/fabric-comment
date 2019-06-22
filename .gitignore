@@ -62,8 +62,8 @@ examples/e2e_cli/crypto-config/*
 .idea/*
 !.idea/runConfigurations/
 
-# dev-network
-dev-network
+# fabric-network
+fabric-network
 
 # orderer
 orderer/orderer

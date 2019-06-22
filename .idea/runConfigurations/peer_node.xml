@@ -7,7 +7,7 @@
     <envs>
       <env name="CORE_PEER_LOCALMSPID" value="DEFAULT" />
       <env name=" CORE_PEER_ID" value="peer" />
-      <env name=" CORE_PEER_MSPCONFIGPATH" value="$PROJECT_DIR$/dev-network/msp" />
+      <env name=" CORE_PEER_MSPCONFIGPATH" value="$PROJECT_DIR$/fabric-network/dev-network/msp" />
       <env name=" CORE_PEER_ADDRESS" value="127.0.0.1:7051" />
     </envs>
     <kind value="DIRECTORY" />
