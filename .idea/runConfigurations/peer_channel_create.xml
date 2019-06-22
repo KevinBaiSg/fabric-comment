@@ -3,7 +3,7 @@
     <module name="fabric-comment" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-i -mod=vendor" />
-    <parameters value="channel create -c myc -f $PROJECT_DIR$/dev-network/config/myc.tx -o 127.0.0.1:7050" />
+    <parameters value="channel create -c myc -f $PROJECT_DIR$/fabric-network/dev-network/config/myc.tx -o 127.0.0.1:7050" />
     <envs>
       <env name="CORE_PEER_LOCALMSPID" value="DEFAULT" />
       <env name="CORE_PEER_ID" value="cli" />
